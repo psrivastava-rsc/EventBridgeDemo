@@ -1,0 +1,130 @@
+service:
+  name: eventbridgedemo
+
+plugins:
+  - serverless-offline
+  - serverless-pseudo-parameters
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  apiName: eventbridgedemo
+  stage: ${opt:stage, 'develop'}
+  region: ${opt:region, 'us-east-1'}
+  deploymentBucket:
+    name: ${self:custom.deploymentBuckets.${self:provider.region}}
+  versionFunctions: false
+  logRetentionInDays: 7
+  memorySize: 256
+  apiGateway:
+    minimumCompressionSize: 1024
+  environment:
+    AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+  iamRoleStatements:
+    - Effect: Allow
+      Action: 'lambda:InvokeFunction'
+      Resource:
+        - Fn::Join:
+            - ':'
+            - - arn:aws:lambda
+              - Ref: AWS::Region
+              - Ref: AWS::AccountId
+              - function:*
+    - Effect: 'Allow'
+      Action:
+        - 'events:PutEvents'
+      Resource:
+        - arn:aws:events:#{AWS::Region}:#{AWS::AccountId}:event-bus/default
+
+
+functions:
+
+  publisher:
+    handler: handler.putevent
+    name: eventbridgedemo-publisher
+    events:
+      - http:
+          method: get
+          path: putevent
+
+  atmConsumerCase1Fn:
+    handler: handler.atmConsumerCase1Fn
+    name: eventbridgedemo-atmConsumerCase1Fn
+    events:
+      - eventBridge:
+          pattern:
+            source:
+              - custom.myATMapp
+            detail-type:
+              - transaction
+            detail:
+              location:
+                - "prefix": "MA-"
+
+  atmConsumerCase2Fn:
+    handler: handler.atmConsumerCase2Fn
+    name: eventbridgedemo-atmConsumerCase2Fn
+    events:
+      - eventBridge:
+          pattern:
+            source:
+              - custom.myATMapp
+            detail-type:
+              - transaction
+            detail:
+              location:
+                - "prefix": "NY-"
+
+  atmConsumerCase3Fn:
+    handler: handler.atmConsumerCase3Fn
+    name: eventbridgedemo-atmConsumerCase3Fn
+    events:
+      - eventBridge:
+          pattern:
+            source:
+              - custom.myATMapp
+            detail-type:
+              - transaction
+            detail:
+              result:
+                - "anything-but": "approved"
+
+custom:
+  deploymentBuckets:
+    us-east-1: ps-platform-deployment-us-east-1
+    eu-west-1: ps-platform-deployment-eu-west-1
+
+#Resources:
+#
+#  EventRuleCase1:
+#    Type: AWS::Events::Rule
+#    Properties:
+#      Description: "Approved transactions"
+#      EventPattern:
+#        source:
+#          - "custom.myATMapp"
+#        detail-type:
+#          - transaction
+#        detail:
+#          result:
+#            - "approved"
+#      State: "ENABLED"
+#      Targets:
+#        -
+#          Arn:
+#            Fn::GetAtt:
+#              - "eventbridgedemo-atmConsumerCase1Fn"
+#              - "Arn"
+#          Id: "atmConsumerTarget1"
+#
+#  PermissionForEventsToInvokeLambda:
+#    Type: AWS::Lambda::Permission
+#    Properties:
+#      FunctionName:
+#        Ref: "eventbridgedemo-atmConsumerCase1Fn"
+#      Action: "lambda:InvokeFunction"
+#      Principal: "events.amazonaws.com"
+#      SourceArn:
+#        Fn::GetAtt:
+#          - "EventRuleCase1"
+#          - "Arn"
