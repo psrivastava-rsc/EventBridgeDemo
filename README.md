@@ -1,12 +1,15 @@
 ## EventBridge
 
 ```js
-                                                  +----------------------------------+
-                                                  |                                  |
-                                         +------->+      atmConsumerCase1Fn          | source: custom.myATMapp
-                                         |        |                                  | detail-type: transaction
-               +-------------------+     |        +----------------------------------+ detail: location: - "prefix": "MA-"
-               |                   |     |                                               
+                                                                                      source: custom.myATMapp
+                                                                                      detail-type: transaction
+                                                  +----------------------------------+detail:
+                                                  |                                  |  location:
+                                         +------->+      atmConsumerCase1Fn          |    - "prefix": "MA-"
+                                         |        |                                  |
+               +-------------------+     |        +----------------------------------+
+               |                   |     |
+    +--------->+    EventBridge    +-----+        +----------------------------------+
 putEvents      |                   |     |        |                                  |
                +-------------------+     +------->+      atmConsumerCase2Fn          |
                                          |        |                                  |
